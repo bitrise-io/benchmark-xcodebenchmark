@@ -1,0 +1,66 @@
+# Benchmark XcodeBenchmark on a Build Hub pool or a GitHub-hosted macOS runner.
+# Mirrored from jayson-bitrise for BPS-734 (M5 Pro / M6 vs GitHub runners). Scripts: .github/bench/
+name: Benchmark XcodeBenchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: "Runner label (Build Hub pool or GitHub-hosted)"
+        type: choice
+        default: "bitrise-m5pro-benchmark"
+        options:
+          - bitrise-m5pro-benchmark
+          - bitrise-m6-benchmark
+          - macos-15
+          - macos-15-xlarge
+      runs:
+        description: "Measured runs"
+        type: string
+        default: "1"
+      warmup_runs:
+        description: "Warm-up runs (not counted)"
+        type: string
+        default: "0"
+
+permissions:
+  contents: read
+
+# One benchmark per runner label at a time in this repo (method: our builds never share a Mac).
+concurrency:
+  group: benchmark-${{ inputs.runner }}
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    name: ${{ inputs.runner }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 360
+    env:
+      METHOD_VERSION: gha-v1
+      MACHINE_KEY: ${{ inputs.runner }}
+      BENCHMARK_RUNS: ${{ inputs.runs }}
+      WARMUP_RUNS: ${{ inputs.warmup_runs }}
+      BENCHMARK_PROJECT: "XcodeBenchmark"
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Stage benchmark scripts and paths
+        run: |
+          cp -R .github/bench "$RUNNER_TEMP/bench"
+          echo "BENCH_OUT=$RUNNER_TEMP/bench-out" >> "$GITHUB_ENV"
+      - name: Machine info
+        run: source "$RUNNER_TEMP/bench/lib.sh" && sysinfo
+      - name: Prepare (not timed)
+        run: bash "$RUNNER_TEMP/bench/prepare.sh"
+      - name: Benchmark
+        run: bash "$RUNNER_TEMP/bench/run.sh"
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ inputs.runner }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/bench-out
+          if-no-files-found: warn
