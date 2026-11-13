@@ -32,7 +32,7 @@ permissions:
 
 # One benchmark per runner label at a time in this repo (method: our builds never share a Mac).
 concurrency:
-  group: benchmark-${{ inputs.runner }}
+  group: benchmark-${{ inputs.runner }}-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
