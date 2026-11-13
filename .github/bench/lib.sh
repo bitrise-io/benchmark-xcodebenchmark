@@ -52,6 +52,8 @@ summary_common() {
   "machine_key": "${MACHINE_KEY}",
   "runner_name": "${RUNNER_NAME:-}",
   "xcode": "$(xcodebuild -version 2>/dev/null | awk '/^Xcode /{print $2}')",
+  "build_cache": "${BENCH_BUILD_CACHE:-off}",
+  "build_cache_cli": "${BENCH_BBC_VERSION:-}",
   "warmup_runs": ${WARMUP_RUNS},
   "runs": ${BENCHMARK_RUNS},
   "github_run": "${GITHUB_SERVER_URL:-}/${GITHUB_REPOSITORY:-}/actions/runs/${GITHUB_RUN_ID:-}"

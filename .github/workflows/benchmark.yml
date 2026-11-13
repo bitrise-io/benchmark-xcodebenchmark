@@ -22,6 +22,10 @@ on:
         description: "Warm-up runs (not counted)"
         type: string
         default: "0"
+      build_cache:
+        description: "Enable Bitrise Build Cache (warm-up run fills the cache; measured runs read it)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -51,16 +55,20 @@ jobs:
         run: |
           cp -R .github/bench "$RUNNER_TEMP/bench"
           echo "BENCH_OUT=$RUNNER_TEMP/bench-out" >> "$GITHUB_ENV"
+          if [ "${{ inputs.build_cache }}" = true ]; then bash "$RUNNER_TEMP/bench/cache.sh" xcode; fi
       - name: Machine info
         run: source "$RUNNER_TEMP/bench/lib.sh" && sysinfo
       - name: Prepare (not timed)
         run: bash "$RUNNER_TEMP/bench/prepare.sh"
       - name: Benchmark
         run: bash "$RUNNER_TEMP/bench/run.sh"
+      - name: Deactivate Build Cache
+        if: ${{ always() && inputs.build_cache }}
+        run: '[ -n "${BBC:-}" ] && "$BBC" deactivate xcode || true'
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-${{ inputs.runner }}-${{ github.run_id }}
+          name: benchmark-${{ inputs.build_cache && 'cache-' || '' }}${{ inputs.runner }}-${{ github.run_id }}
           path: ${{ runner.temp }}/bench-out
           if-no-files-found: warn
